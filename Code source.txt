@@ -1,0 +1,91 @@
+// Lcd module connetions
+sbit LCD_RS at RC0_bit;
+sbit LCD_EN at RC1_bit;
+sbit LCD_D4 at RC2_bit;
+sbit LCD_D5 at RC3_bit;
+sbit LCD_D6 at RC4_bit;
+sbit LCD_D7 at RC5_bit;
+
+sbit LCD_RS_Direction at TRISC0_bit;
+sbit LCD_EN_Direction at TRISC1_bit;
+sbit LCD_D4_Direction at TRISC2_bit;
+sbit LCD_D5_Direction at TRISC3_bit;
+sbit LCD_D6_Direction at TRISC4_bit;
+sbit LCD_D7_Direction at TRISC5_bit;
+// End Lcd module connections
+
+unsigned int duration;
+float distance;
+char text[15];
+void interrupt(){
+     if(RBIF_bit){
+                  RBIE_bit = 0;         // disable the port change interrupt
+                  if(RB4_bit==1){
+                                 TMR1L  = 0;
+                                 TMR1H  = 0;       // Clear the timer resistor
+                                 T1CON.TMR1ON = 1;           // Enable the Timer1
+                                 }
+                  if(RB4_bit==0){
+                                 duration = (TMR1H<<8) | (TMR1L) ;
+                                 T1CON.TMR1ON = 0;        // Disable the timer1
+
+                                 }
+                  RBIF_bit = 0;        // Clear the interrupt flag bit
+                  }
+     RBIE_bit = 1;          // Enable the port change interrupt
+     }
+
+void main() {
+     TRISB0_bit = 0;      // Trig pin
+     PORTB.F0 = 0;         // Set low state
+     TRISB4_bit = 1;      // Echo pin
+     PORTB.F4 = 0;         // Set low state
+     Lcd_Init();          // Initialize the Lcd module
+     Lcd_Cmd(_LCD_CLEAR);     // Clear the Lcd display
+     Lcd_Cmd(_LCD_CURSOR_OFF);      // Cursor of the Lcd display
+     Lcd_Out(1,1,"Developed by");
+     delay_ms(1000);
+     Lcd_Cmd(_LCD_CLEAR);
+     Lcd_Out(1,1,"MEHDI RAOUAH");
+     Lcd_Out(2,1,"ZAKARIA JADILI");
+
+     delay_ms(2000);            // 1second delay
+     Lcd_Cmd(_LCD_CLEAR);           // Clear the lcd display
+
+     INTCON.GIE = 1;           // Enable the gloabal interrupt
+     INTCON.RBIE = 1;          // Enable the port change
+
+     T1CON.TMR1ON = 0;              // Disable timer1
+     T1CON.TMR1CS = 0;        // Timer1 internal clock source (Fosc/4)
+     T1CON.T1CKPS1 = 0;        // 1:2 Presclar value
+     T1CON.T1CKPS0 = 1;
+     duration = 0;
+     distance = 0;
+     while(1){
+              PORTB.F0 =1;    // Generate 10us Trig pulse
+              delay_us(10);
+              PORTB.F0 = 0;
+
+              while(RB4_bit==0);   // Wait for Echo pulse
+
+              distance = duration * (0.034 / 2);
+              if( distance >=2 && distance <=400 ) {         // Check condition for valid distance
+                        Lcd_Out(2,7,"cm");
+                        Lcd_Out(1,1,"Distance:");
+                        floatToStr(distance,text);
+                        Ltrim(text);
+                        text[5] =0;
+                        Lcd_Out(2,1,text);
+                        }
+
+               else {
+                        Lcd_Cmd(_LCD_CLEAR);
+                        Lcd_Out(1,1,"Out of Range");
+
+                        }
+
+              delay_ms(500);
+              }
+
+}
+
